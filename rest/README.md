@@ -2,7 +2,10 @@
 
     pip install -r requirements.txt
     python servidor.py     # terminal 1
-    python cliente.py      # terminal 2
+    python cliente.py      # terminal 2 (interativo: voce digita as mensagens)
+
+No cliente, cada linha digitada e enviada ao servidor (POST). Comandos: /listar, /ver ID,
+/editar ID TEXTO, /apagar ID, /ajuda, /sair.
 
 Tambem funciona com qualquer linguagem/ferramenta, pois e HTTP + JSON:
 
