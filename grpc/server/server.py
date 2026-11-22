@@ -125,10 +125,24 @@ class ArmazemServicer(pb_grpc.ArmazemServicer):
         return pb.LentaReply(mensagem=f"terminei após {request.segundos}s")
 
 
+class MensageiroServicer(pb_grpc.MensageiroServicer):
+    """Recebe mensagens de texto dos clientes e imprime na tela do servidor."""
+    total = 0
+
+    def Enviar(self, request, context):
+        with LOCK:
+            MensageiroServicer.total += 1
+            n = MensageiroServicer.total
+        hora = time.strftime("%H:%M:%S")
+        print(f"[{hora}] mensagem #{n} de {request.remetente}: {request.texto}", flush=True)
+        return pb.Confirmacao(recebida=True, numero=n, hora=hora)
+
+
 def main():
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10),
                          interceptors=[AuthInterceptor()])
     pb_grpc.add_ArmazemServicer_to_server(ArmazemServicer(), server)
+    pb_grpc.add_MensageiroServicer_to_server(MensageiroServicer(), server)
     server.add_insecure_port(f"[::]:{PORTA}")
     server.start()
     log(f"gRPC (Python) ouvindo na porta {PORTA}")

@@ -94,3 +94,19 @@ def ler(grupo, topico, ociosidade=2.0, **cfg):
         c.commit(asynchronous=False)
     c.close()
     return out
+
+
+def garantir_topico(nome, particoes=1):
+    """Cria o tópico se ainda não existir (auto-create está desligado no broker)."""
+    a = admin()
+    if nome not in a.list_topics(timeout=10).topics:
+        for f in a.create_topics([NewTopic(nome, particoes, 1)]).values():
+            try:
+                f.result()
+            except KafkaException:
+                pass
+    for _ in range(50):
+        t = a.list_topics(nome, timeout=5).topics.get(nome)
+        if t and t.error is None and all(p.leader >= 0 for p in t.partitions.values()):
+            return
+        time.sleep(0.2)

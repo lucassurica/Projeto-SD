@@ -68,6 +68,15 @@ Fila declarada com `x-max-priority=10`; mensagem leva `priority=0..10`. A fila e
 (demo 9: fraude(10) → pagamento(9) → … → backup(1)); a fila comum é FIFO. A prioridade só **reordena o que está
 esperando** (backlog); com consumidor ocioso a mensagem é entregue na hora. Quanto maior o máximo, mais custo (uma sub-fila interna por nível).
 
+## Mensageiro simples (cliente → servidor)
+O cliente publica cada linha na fila durável `mensagens` (mensagem persistente + publisher confirm); o "servidor" é um consumidor com ack manual.
+Como há um broker no meio, **o cliente pode enviar com o servidor desligado**: as mensagens ficam na fila e chegam quando o servidor subir.
+```bash
+./mensagens.sh servidor    # terminal 1: consumidor
+./mensagens.sh cliente     # terminal 2: produtor
+```
+Código: `demos/chat_cliente.py` e `demos/chat_servidor.py`.
+
 ## Estrutura
 ```
 docker-compose.yml  rabbitmq:4-management + container cliente (profile "clients")

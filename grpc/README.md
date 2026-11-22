@@ -62,6 +62,15 @@ protoc --go_out=. --go-grpc_out=. proto/armazem.proto
 (Nesta entrega servidor e cliente são ambos Python, por escolha do grupo; o argumento de
 interoperabilidade vem do fato de o `.proto` ser neutro e de a wire format ser padronizada.)
 
+## Mensageiro simples (cliente → servidor)
+Chamada unária `Mensageiro.Enviar(Mensagem) returns (Confirmacao)` definida no mesmo `proto/armazem.proto`.
+O servidor imprime cada mensagem e o cliente recebe uma confirmação síncrona (nº e hora).
+```bash
+./mensagens.sh servidor    # terminal 1: mostra as mensagens recebidas
+./mensagens.sh cliente     # terminal 2: pede o nome e depois cada linha digitada é enviada
+```
+Código: `client/mensagem_client.py` e `MensageiroServicer` em `server/server.py`.
+
 ## Estrutura
 ```
 proto/armazem.proto     contrato único

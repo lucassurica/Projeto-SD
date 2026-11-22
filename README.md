@@ -24,6 +24,13 @@ não geográfica). O host precisa apenas de Docker + Docker Compose.
 | Garante ordem | n/a | por stream | por fila | por partição |
 | Ideal para | APIs públicas | microsserviços internos | tarefas, workflows | eventos, dados em volume |
 
+## Mensageiro simples (cliente envia mensagens ao servidor)
+Em cada pasta, em dois terminais:
+```bash
+./mensagens.sh servidor    # terminal 1
+./mensagens.sh cliente     # terminal 2 — digite mensagens; /sair encerra
+```
+
 ## Gerar os .zip para entrega (um por protocolo)
 ```bash
 python3 make_zips.py        # cria dist/grpc.zip, dist/rest.zip, dist/rabbitmq.zip, dist/kafka.zip

@@ -155,3 +155,29 @@ def remover(pid: int):
 @app.options("/v1/produtos", tags=["produtos"])
 def opcoes():
     return Response(status_code=204, headers={"Allow": "GET, POST, OPTIONS"})
+
+
+# ---------------------------------------------------------------- Mensageiro simples
+import time as _time
+
+MENSAGENS = []
+
+
+class MensagemIn(BaseModel):
+    remetente: str = Field(min_length=1)
+    texto: str = Field(min_length=1)
+
+
+@app.post("/v1/mensagens", status_code=201, tags=["mensagens"], dependencies=[Depends(autenticar)])
+def enviar_mensagem(m: MensagemIn, response: Response):
+    """O cliente envia uma mensagem; o servidor a imprime e guarda."""
+    msg = {"numero": len(MENSAGENS) + 1, "hora": _time.strftime("%H:%M:%S"), **m.model_dump()}
+    MENSAGENS.append(msg)
+    print(f"[{msg['hora']}] mensagem #{msg['numero']} de {msg['remetente']}: {msg['texto']}", flush=True)
+    response.headers["Location"] = f"/v1/mensagens/{msg['numero']}"
+    return msg
+
+
+@app.get("/v1/mensagens", tags=["mensagens"], dependencies=[Depends(autenticar)])
+def listar_mensagens():
+    return MENSAGENS

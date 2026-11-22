@@ -64,3 +64,19 @@ service Armazem {
   // Usada para demonstrar deadline/timeout
   rpc OperacaoLenta (LentaRequest) returns (LentaReply);
 }
+
+// ---- Mensageiro simples: o cliente envia mensagens de texto ao servidor ----
+message Mensagem {
+  string remetente = 1;
+  string texto = 2;
+}
+
+message Confirmacao {
+  bool recebida = 1;
+  int32 numero = 2;   // nº sequencial da mensagem no servidor
+  string hora = 3;
+}
+
+service Mensageiro {
+  rpc Enviar (Mensagem) returns (Confirmacao);
+}

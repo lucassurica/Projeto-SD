@@ -62,6 +62,15 @@ por um período de **retenção** (padrão 7 dias), **independentemente de terem
 Precisa de *histórico de eventos*, vários consumidores independentes e altíssimo volume → Kafka.
 A demo 5 prova a diferença central: 5 mensagens são lidas e confirmadas; um consumidor **novo** não acha nada no RabbitMQ, mas lê as 5 no Kafka.
 
+## Mensageiro simples (cliente → servidor)
+O cliente grava cada linha no tópico `mensagens` (chave = nome do remetente); o "servidor" é um consumidor do grupo `servidor-mensagens` e mostra partição/offset.
+O log retém as mensagens: um servidor que sobe depois lê tudo desde o início.
+```bash
+./mensagens.sh servidor    # terminal 1: consumidor
+./mensagens.sh cliente     # terminal 2: produtor
+```
+Código: `demos/chat_cliente.py` e `demos/chat_servidor.py`.
+
 ## Estrutura
 ```
 docker-compose.yml  kafka (KRaft) + cliente + rabbitmq (profile "comparacao", só demo 5)

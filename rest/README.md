@@ -48,6 +48,14 @@ HTTP + JSON são universais: browser, mobile, `curl`, qualquer linguagem com bib
 É o que torna REST o padrão para **APIs públicas**. O custo: JSON é verboso, sem tipagem forte nativa,
 *over/under-fetching*, e não há streaming bidirecional nativo (ver comparação em `../grpc/README.md`).
 
+## Mensageiro simples (cliente → servidor)
+`POST /v1/mensagens` com `{"remetente": ..., "texto": ...}` → `201 Created`; `GET /v1/mensagens` lista o histórico (`/listar` no cliente).
+```bash
+./mensagens.sh servidor    # terminal 1: mostra as mensagens recebidas
+./mensagens.sh cliente     # terminal 2: pede o nome e depois cada linha digitada vira um POST
+```
+Código: `client/mensagem_client.py` e os endpoints `/v1/mensagens` em `server/app.py`.
+
 ## Estrutura
 ```
 server/app.py      API FastAPI (todas as características)
