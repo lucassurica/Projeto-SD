@@ -1,0 +1,28 @@
+name: sd-rabbitmq
+
+services:
+  rabbitmq:
+    image: rabbitmq:4-management
+    hostname: rabbit-sd            # nome do nó fixo: os dados persistentes sobrevivem a restarts
+    ports:
+      - "5672:5672"                # AMQP
+      - "15672:15672"              # Painel web (guest / guest)
+    volumes:
+      - rabbit-data:/var/lib/rabbitmq
+      - ./rabbitmq.conf:/etc/rabbitmq/conf.d/90-sd.conf:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 3s
+      timeout: 10s
+      retries: 30
+
+  client:
+    build: .
+    profiles: ["clients"]
+    volumes: ["./demos:/app/demos:ro"]
+    environment: { RABBIT_HOST: rabbitmq }
+    depends_on:
+      rabbitmq: { condition: service_healthy }
+
+volumes:
+  rabbit-data:
