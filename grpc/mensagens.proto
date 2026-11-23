@@ -1,0 +1,16 @@
+syntax = "proto3";
+package mensagens;
+
+// Contrato unico: a partir deste arquivo gera-se cliente/servidor em
+// qualquer linguagem (Python, Java, Go, Node, C#...).
+service Mensageiro {
+  rpc Enviar (Mensagem) returns (Confirmacao);               // unario
+  rpc Inscrever (Pedido) returns (stream Mensagem);          // streaming do servidor
+  rpc EnviarVarias (stream Mensagem) returns (Resumo);       // streaming do cliente
+  rpc Chat (stream Mensagem) returns (stream Mensagem);      // bidirecional
+}
+
+message Mensagem   { string remetente = 1; string texto = 2; }
+message Confirmacao{ bool recebida = 1; string info = 2; }
+message Pedido     { int32 quantidade = 1; }
+message Resumo     { int32 total = 1; }

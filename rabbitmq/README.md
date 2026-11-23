@@ -1,87 +1,44 @@
-# RabbitMQ — Mensageria com AMQP 0-9-1
+# RabbitMQ (AMQP) - pika
 
-Broker `rabbitmq:4-management` + demos em **Python (pika)**. Painel web: <http://localhost:15672> (`guest`/`guest`).
+    docker compose up -d        # painel: http://localhost:15672 (guest/guest)
+    pip install -r requirements.txt
+    # rode docker compose up -d novamente caso não tenha funcionado na primeira vez
 
-```bash
-./run.sh                 # todas as demos, com pausa (ENTER) entre elas — ideal p/ gravar
-./run.sh --auto          # sem pausas
-./run.sh --auto 3 6      # só as demos 3 e 6
-docker compose down -v   # encerrar
-```
+Cada demo usa 2+ terminais: primeiro o(s) consumidor(es), depois o produtor.
 
-## Teoria
+## 1. Roteamento (4 tipos de exchange)
+    python roteamento_consumidor.py direct erro          ; python roteamento_produtor.py direct
+    python roteamento_consumidor.py fanout               ; python roteamento_produtor.py fanout
+    python roteamento_consumidor.py topic "*.erro"       ; python roteamento_produtor.py topic
+    python roteamento_consumidor.py headers formato=pdf  ; python roteamento_produtor.py headers
 
-**Comunicação assíncrona por mensagens**: produtor e consumidor não precisam estar no ar ao mesmo
-tempo (*desacoplamento temporal*), nem se conhecer (*desacoplamento espacial*). O broker guarda a
-mensagem até alguém consumir. Ganhos: absorver picos (buffer), tolerância a falhas, escalar consumidores.
+## 2. Balanceamento de carga
+# Round-robin:
+    python balanceamento_consumidor.py A     (terminal 1)
+    python balanceamento_consumidor.py B     (terminal 2)
+    python balanceamento_produtor.py 12      (terminal 3)  -> A e B recebem 6 cada
+# Round-robin ponderado (A com peso 3, B com peso 1 -> 3:1):
+    python balanceamento_consumidor.py A --peso 3
+    python balanceamento_consumidor.py B --peso 1
+    python balanceamento_produtor.py 12
+# Fair dispatch (por disponibilidade) Compare rodando antes sem --prefetch, com os mesmos tempos.
+    python balanceamento_consumidor.py A --prefetch 1 --tempo 0.1    (terminal 1, rapido)
+    python balanceamento_consumidor.py B --prefetch 1 --tempo 1.0    (terminal 2, lento)
+    python balanceamento_produtor.py 12                              (terminal 3)
 
-**Modelo AMQP:** `Produtor → Exchange →(binding + routing key)→ Fila → Consumidor`.
-O produtor **nunca** publica direto na fila: publica numa *exchange*, que decide para quais filas copiar a mensagem.
+## 3. Persistente x transiente
+    python persistencia.py enviar ; docker compose restart rabbitmq ; python persistencia.py ler
 
-| # | Demo | O que prova |
-|---|---|---|
-| 1 | `01_direct.py` | **Direct**: routing key = binding key (exato). + exchange padrão `""` |
-| 2 | `02_fanout.py` | **Fanout**: broadcast p/ todas as filas (pub/sub) |
-| 3 | `03_topic.py` | **Topic**: padrões `*` (1 palavra) e `#` (0+ palavras) |
-| 4 | `04_headers.py` | **Headers**: roteia por atributos, `x-match=all/any` |
-| 5 | `05_round_robin.py` | **Round-robin** e **despacho justo** (`prefetch=1`) |
-| 6 | `06_round_robin_ponderado.py` | **Round-robin ponderado** 3:1 e 1:2:3 |
-| 7 | `07_persistencia.py` | **Persistente × transiente**, com *publisher confirms*, sobrevivendo a restart do broker |
-| 8 | `08_confirmacoes.py` | **Com × sem ack**: auto-ack perde, ack manual reentrega; nack→DLQ; confirms/mandatory do produtor |
-| 9 | `09_prioridade.py` | **Fila de prioridade** (`x-max-priority`) vs FIFO |
+## 4. Com e sem confirmacao
+# O consumidor so le o que esta na fila: rode o produtor ANTES de cada consumidor, senao ele fica
+# so em "aguardando...". Feche (Ctrl+C) consumidores antigos antes de recomecar.
 
-### Tipos de roteamento (exchange)
-| Tipo | Regra | Exemplo na demo |
-|---|---|---|
-| direct | chave exata | `error` → `q_erros` e `q_tudo`; `debug` (sem binding) é descartada |
-| fanout | ignora chave; copia p/ todas | 1 evento → e-mail, SMS e auditoria |
-| topic | padrão com `*` e `#` | `pedido.sp.criado` casa com `pedido.*.criado`, `pedido.#`, `*.sp.*`, `#` |
-| headers | casa cabeçalhos | `doc1{pdf,alta}` → `q_pdf_urgente` (all) e `q_pdf_ou_web` (any) |
-| default (`""`) | direct implícito: chave = nome da fila | envio direto por nome de fila |
+    python confirmacao_produtor.py                      # publisher confirms: coloca 5 pedidos na fila
+    python confirmacao_consumidor.py auto --falhar      # recebe 1, 2 e 3; cai no 3 (auto-ack)
+    python confirmacao_produtor.py                      # enche a fila de novo
+    python confirmacao_consumidor.py manual --falhar    # confirma (ack) 1 e 2; cai no 3 sem ack
+    python confirmacao_consumidor.py manual             # recebe 3, 4 e 5 com redelivered=True; encerre com
+                                                        # Ctrl + C 
 
-### Balanceamento de carga entre consumidores (*competing consumers*)
-- **Round-robin (padrão):** a fila entrega 1 mensagem a cada consumidor, em ciclo, *sem olhar a carga*. Na demo 5, o worker 10× mais lento recebe 6 de 12, igual ao rápido.
-- **Despacho justo:** `basic_qos(prefetch_count=1)` → só entrega a próxima após o ack da anterior; o worker rápido atende mais (10 contra 2) e o tempo total cai (1,2 s → 0,4 s).
-- **Round-robin ponderado:** o RabbitMQ não tem "peso" nativo — usa-se o fato de o round-robin ser **por consumidor**: um worker com peso *w* registra *w* consumers na fila. Pesos A=3, B=1 → 12 e 4 de 16 mensagens (3:1).
-
-### Persistência × transiente; com × sem confirmação
-Para uma mensagem sobreviver a um restart do broker são necessárias **as duas** coisas:
-1. **Fila durável** (`durable=True`) e 2. **mensagem persistente** (`delivery_mode=2`).
-
-| Fila | Mensagem | Após restart (demo 7) |
-|---|---|---|
-| durável | persistente | ✔ 3 mensagens |
-| durável | transiente | fila existe, **0** mensagens |
-| não durável | persistente | fila **desapareceu** |
-
-*Observação:* o RabbitMQ 4.x **deprecou** filas transientes não exclusivas; por isso `rabbitmq.conf`
-reabilita `transient_nonexcl_queues` — o suficiente para demonstrar o contraste.
-
-Três "confirmações" diferentes (não confundir):
-- **Consumer ack** (`basic_ack`): consumidor → broker "processei". Sem ele (auto-ack) uma queda perde a mensagem; com ele há **reentrega** (`redelivered=True`) → semântica *at-least-once*.
-- **Publisher confirm** (`confirm_delivery`): broker → produtor "recebi e (se persistente) gravei em disco".
-- **`mandatory` / `basic.return`**: broker devolve ao produtor mensagem que **não casou com nenhuma fila**.
-- **`nack(requeue=False)` + DLX**: rejeitada vai para a *Dead Letter Queue* (cabeçalho `x-death` com motivo).
-
-### Prioridade
-Fila declarada com `x-max-priority=10`; mensagem leva `priority=0..10`. A fila entrega primeiro as mais prioritárias
-(demo 9: fraude(10) → pagamento(9) → … → backup(1)); a fila comum é FIFO. A prioridade só **reordena o que está
-esperando** (backlog); com consumidor ocioso a mensagem é entregue na hora. Quanto maior o máximo, mais custo (uma sub-fila interna por nível).
-
-## Mensageiro simples (cliente → servidor)
-O cliente publica cada linha na fila durável `mensagens` (mensagem persistente + publisher confirm); o "servidor" é um consumidor com ack manual.
-Como há um broker no meio, **o cliente pode enviar com o servidor desligado**: as mensagens ficam na fila e chegam quando o servidor subir.
-```bash
-./mensagens.sh servidor    # terminal 1: consumidor
-./mensagens.sh cliente     # terminal 2: produtor
-```
-Código: `demos/chat_cliente.py` e `demos/chat_servidor.py`.
-
-## Estrutura
-```
-docker-compose.yml  rabbitmq:4-management + container cliente (profile "clients")
-rabbitmq.conf       reabilita filas transientes (deprecadas no 4.x)
-demos/              common.py, balanceamento.py, 01…09
-run.sh              orquestra as demos (inclui o restart do broker na demo 7)
-ROTEIRO_VIDEO.md
-```
+## 5. Prioridade
+    python prioridade.py enviar ; python prioridade.py ler
