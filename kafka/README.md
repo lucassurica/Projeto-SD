@@ -7,4 +7,3 @@
     python produtor.py                     # terminal 2
     python consumidor.py g2                # grupo novo le tudo de novo (replay)
 
-Comparacao com RabbitMQ: ver KAFKA_vs_RABBITMQ.md

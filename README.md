@@ -24,9 +24,3 @@ não geográfica). O host precisa apenas de Docker + Docker Compose.
 | Garante ordem | n/a | por stream | por fila | por partição |
 | Ideal para | APIs públicas | microsserviços internos | tarefas, workflows | eventos, dados em volume |
 
-## Gerar os .zip para entrega (um por protocolo)
-```bash
-python3 make_zips.py        # cria dist/grpc.zip, dist/rest.zip, dist/rabbitmq.zip, dist/kafka.zip
-```
-Os **vídeos** (≤ 5 min cada, um por protocolo) devem ser gravados seguindo o `ROTEIRO_VIDEO.md`
-de cada pasta e enviados ao Classroom como arquivos individuais (sem links, sem compactar).

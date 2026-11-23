@@ -1,4 +1,3 @@
-"""Cliente gRPC interativo: voce digita no terminal e o servidor responde."""
 import queue
 import threading
 import grpc
